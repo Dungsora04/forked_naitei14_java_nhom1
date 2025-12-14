@@ -5,6 +5,7 @@ import org.example.foodanddrinkproject.dto.OrderDto;
 import org.example.foodanddrinkproject.dto.ProductRequest;
 import org.example.foodanddrinkproject.enums.OrderStatus;
 import org.example.foodanddrinkproject.enums.PaymentMethod;
+import org.example.foodanddrinkproject.scheduler.MonthlyStatisticsScheduler;
 import org.example.foodanddrinkproject.service.*;
 
 import jakarta.validation.Valid;
@@ -153,6 +154,9 @@ public class AdminWebController {
     @Autowired
     private ChatworkService chatworkService;
 
+    @Autowired
+    private MonthlyStatisticsScheduler monthlyStatisticsScheduler;
+
     @GetMapping("/test-chatwork")
     @ResponseBody
     public String testChatwork() {
@@ -165,5 +169,12 @@ public class AdminWebController {
         chatworkService.sendOrderNotification(dummyOrder);
 
         return "Check your Chatwork room!";
+    }
+
+    @GetMapping("/test-monthly-stats")
+    @ResponseBody
+    public String testMonthlyStats() {
+        monthlyStatisticsScheduler.sendStatisticsManually();
+        return "Monthly statistics sent to Chatwork! Check your room.";
     }
 }
