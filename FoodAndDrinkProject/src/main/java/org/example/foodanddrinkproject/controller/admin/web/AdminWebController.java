@@ -29,17 +29,20 @@ public class AdminWebController {
     private final UserService userService;
     private final DashboardService dashboardService;
     private final ProductSuggestionService suggestionService;
+    private final RatingService ratingService;
 
     public AdminWebController(ProductService productService, CategoryService categoryService,
                               OrderService orderService, UserService userService,
                               DashboardService dashboardService,
-                              ProductSuggestionService suggestionService) {
+                              ProductSuggestionService suggestionService,
+                              RatingService ratingService) {
         this.productService = productService;
         this.categoryService = categoryService;
         this.orderService = orderService;
         this.userService = userService;
         this.dashboardService = dashboardService;
         this.suggestionService = suggestionService;
+        this.ratingService = ratingService;
     }
 
     @GetMapping("/dashboard")
@@ -220,6 +223,26 @@ public class AdminWebController {
     public String listSuggestions(Model model, Pageable pageable) {
         model.addAttribute("suggestions", suggestionService.getAllSuggestions(pageable));
         return "admin/suggestions";
+    }
+
+    @GetMapping("/suggestions/delete/{id}")
+    public String deleteSuggestion(@PathVariable Long id, RedirectAttributes redirectAttributes) {
+        suggestionService.deleteSuggestion(id);
+        redirectAttributes.addFlashAttribute("success", "Suggestion deleted.");
+        return "redirect:/admin/suggestions";
+    }
+
+    @GetMapping("/reviews")
+    public String listReviews(Model model, Pageable pageable) {
+        model.addAttribute("reviews", ratingService.getAllRatings(pageable));
+        return "admin/reviews";
+    }
+
+    @GetMapping("/reviews/delete/{id}")
+    public String deleteReview(@PathVariable Long id, RedirectAttributes redirectAttributes) {
+        ratingService.deleteRating(id);
+        redirectAttributes.addFlashAttribute("success", "Review deleted.");
+        return "redirect:/admin/reviews";
     }
 
 
