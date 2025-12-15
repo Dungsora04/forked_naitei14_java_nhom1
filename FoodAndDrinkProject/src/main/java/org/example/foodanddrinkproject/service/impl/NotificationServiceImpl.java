@@ -1,20 +1,35 @@
 package org.example.foodanddrinkproject.service.impl;
 
+import java.time.format.DateTimeFormatter;
+
 import org.example.foodanddrinkproject.dto.OrderDto;
 import org.example.foodanddrinkproject.dto.OrderItemDto;
 import org.example.foodanddrinkproject.service.NotificationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
-
-import java.time.format.DateTimeFormatter;
 
 @Service
 public class NotificationServiceImpl implements NotificationService {
 
     private static final Logger logger = LoggerFactory.getLogger(NotificationServiceImpl.class);
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
+    
+    private final JavaMailSender mailSender;
+    
+    @Value("${spring.mail.from:noreply@foodanddrink.com}")
+    private String fromEmail;
+    
+    @Value("${app.admin.email:admin@foodanddrink.com}")
+    private String adminEmail;
+
+    public NotificationServiceImpl(JavaMailSender mailSender) {
+        this.mailSender = mailSender;
+    }
 
     @Async("asyncExecutor")
     @Override
@@ -22,19 +37,18 @@ public class NotificationServiceImpl implements NotificationService {
         try {
             logger.info("Sending order confirmation email asynchronously to user: {}", order.getUserEmail());
             
-            // Simulate email sending delay
-            Thread.sleep(2000);
-            
             String emailContent = buildOrderConfirmationEmail(order);
             
-            // TODO: Integrate with real email service (JavaMailSender)
-            // For now, just log the email content
-            logger.info("Email sent successfully to {}", order.getUserEmail());
-            logger.debug("Email content:\n{}", emailContent);
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setFrom(fromEmail);
+            message.setTo(order.getUserEmail());
+            message.setSubject("Order Confirmation - Order #" + order.getId());
+            message.setText(emailContent);
             
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            logger.error("Order confirmation email was interrupted for Order ID: {}", order.getId());
+            mailSender.send(message);
+            
+            logger.info("Order confirmation email sent successfully to {}", order.getUserEmail());
+            
         } catch (Exception e) {
             logger.error("Failed to send order confirmation email for Order ID: {}", order.getId(), e);
         }
@@ -46,18 +60,18 @@ public class NotificationServiceImpl implements NotificationService {
         try {
             logger.info("Sending order status update email asynchronously to user: {}", order.getUserEmail());
             
-            // Simulate email sending delay
-            Thread.sleep(1500);
-            
             String emailContent = buildOrderStatusUpdateEmail(order, oldStatus, newStatus);
             
-            // TODO: Integrate with real email service
-            logger.info("Status update email sent successfully to {}", order.getUserEmail());
-            logger.debug("Email content:\n{}", emailContent);
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setFrom(fromEmail);
+            message.setTo(order.getUserEmail());
+            message.setSubject("Order Status Update - Order #" + order.getId());
+            message.setText(emailContent);
             
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            logger.error("Order status update email was interrupted for Order ID: {}", order.getId());
+            mailSender.send(message);
+            
+            logger.info("Order status update email sent successfully to {}", order.getUserEmail());
+            
         } catch (Exception e) {
             logger.error("Failed to send status update email for Order ID: {}", order.getId(), e);
         }
@@ -67,22 +81,22 @@ public class NotificationServiceImpl implements NotificationService {
     @Override
     public void sendAdminNotification(OrderDto order) {
         try {
-            logger.info("Sending admin notification asynchronously for Order ID: {}", order.getId());
-            
-            // Simulate notification delay
-            Thread.sleep(1000);
+            logger.info("Sending admin notification email asynchronously for Order ID: {}", order.getId());
             
             String notificationContent = buildAdminNotification(order);
             
-            // TODO: Integrate with admin notification system
-            logger.info("Admin notification sent successfully for Order ID: {}", order.getId());
-            logger.debug("Notification content:\n{}", notificationContent);
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setFrom(fromEmail);
+            message.setTo(adminEmail);
+            message.setSubject("🛒 New Order Alert - Order #" + order.getId());
+            message.setText(notificationContent);
             
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            logger.error("Admin notification was interrupted for Order ID: {}", order.getId());
+            mailSender.send(message);
+            
+            logger.info("Admin notification email sent successfully for Order ID: {}", order.getId());
+            
         } catch (Exception e) {
-            logger.error("Failed to send admin notification for Order ID: {}", order.getId(), e);
+            logger.error("Failed to send admin notification email for Order ID: {}", order.getId(), e);
         }
     }
 
@@ -124,7 +138,11 @@ public class NotificationServiceImpl implements NotificationService {
         sb.append("Order ID: #").append(order.getId()).append("\n");
         sb.append("Previous Status: ").append(oldStatus).append("\n");
         sb.append("New Status: ").append(newStatus).append("\n");
-        sb.append("Updated At: ").append(order.getUpdatedAt().format(DATE_FORMATTER)).append("\n\n");
+        if (order.getUpdatedAt() != null) {
+            sb.append("Updated At: ").append(order.getUpdatedAt().format(DATE_FORMATTER)).append("\n\n");
+        } else {
+            sb.append("\n");
+        }
         
         if ("SHIPPED".equals(newStatus)) {
             sb.append("Your order is on its way! You should receive it soon.\n");
