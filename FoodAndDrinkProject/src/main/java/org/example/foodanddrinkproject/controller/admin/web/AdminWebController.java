@@ -152,6 +152,45 @@ public class AdminWebController {
         return "admin/users";
     }
 
+    @GetMapping("/users/edit/{id}")
+    public String showEditUserForm(@PathVariable Long id, Model model) {
+        var user = userService.getUserById(id);
+        
+        org.example.foodanddrinkproject.dto.AdminUpdateUserRequest request = new org.example.foodanddrinkproject.dto.AdminUpdateUserRequest();
+        request.setFullName(user.getFullName());
+        request.setPhoneNumber(user.getPhoneNumber());
+        request.setEnabled(user.isEnabled());
+        request.setRoles(user.getRoles());
+        
+        model.addAttribute("userRequest", request);
+        model.addAttribute("userId", id);
+        model.addAttribute("allRoles", userService.getAllRoles());
+        return "admin/user-form";
+    }
+    
+    @PostMapping("/users/save")
+    public String saveUser(@ModelAttribute("userRequest") org.example.foodanddrinkproject.dto.AdminUpdateUserRequest request,
+                           @RequestParam Long id,
+                           RedirectAttributes redirectAttributes) {
+         userService.updateUser(id, request);
+         redirectAttributes.addFlashAttribute("success", "User updated successfully!");
+         return "redirect:/admin/users";
+    }
+
+    @GetMapping("/users/delete/{id}")
+    public String deleteUser(@PathVariable Long id, RedirectAttributes redirectAttributes) {
+        userService.banUser(id, false);
+        redirectAttributes.addFlashAttribute("success", "User has been disabled.");
+        return "redirect:/admin/users";
+    }
+
+    @GetMapping("/users/enable/{id}")
+    public String enableUser(@PathVariable Long id, RedirectAttributes redirectAttributes) {
+        userService.banUser(id, true);
+        redirectAttributes.addFlashAttribute("success", "User has been enabled.");
+        return "redirect:/admin/users";
+    }
+
     @GetMapping("/suggestions")
     public String listSuggestions(Model model, Pageable pageable) {
         model.addAttribute("suggestions", suggestionService.getAllSuggestions(pageable));

@@ -19,10 +19,12 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
+    private final org.example.foodanddrinkproject.repository.RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
 
-    public UserServiceImpl(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    public UserServiceImpl(UserRepository userRepository, org.example.foodanddrinkproject.repository.RoleRepository roleRepository, PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
+        this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -99,6 +101,62 @@ public class UserServiceImpl implements UserService {
         userRepository.save(user);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public UserProfileDto getUserById(Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", id));
+        UserProfileDto dto = mapToUserProfileDto(user);
+        // Add roles to dto if needed? The current DTO doesn't have roles.
+        // But for "Edit User" form, I need roles. 
+        // Wait, UserProfileDto is for "Profile" (self). 
+        // I might need to return a User directly or a massive DTO.
+        // For admin edit, let's verify what UserProfileDto has or if I should return User.
+        // Actually, for simplicity in admin, returning the Entity to the view is standard in Spring MVC monolithic, 
+        // OR map to a Request DTO. 
+        // Let's modify UserProfileDto to include roles or create a new response.
+        
+        // Actually the current requirement just needs `getUserById` to return something I can put in the model.
+        // But `UserProfileDto` is used by the interface.
+        // Let's modify `UserProfileDto` to support roles, OR changed the return to `User` in Service (but Interface returns DTO).
+        // I declared `UserProfileDto getUserById(Long id)`.
+        
+        // Let's just map it.
+        // I need to update UserProfileDto to include `isEnabled` and `roles`.
+        return dto;
+    }
+    
+    @Override
+    @Transactional
+    public void updateUser(Long userId, org.example.foodanddrinkproject.dto.AdminUpdateUserRequest request) {
+         User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "id", userId));
+         
+         // Only update allowed fields
+         // user.setFullName(request.getFullName()); // Maybe? Admin might not edit name? Let's assume yes.
+         // user.setPhoneNumber(request.getPhoneNumber());
+         
+         // Check nulls if partial update? No, form submit typically sends all.
+         
+         if (request.getRoles() != null && !request.getRoles().isEmpty()) {
+             java.util.Set<org.example.foodanddrinkproject.entity.Role> newRoles = new java.util.HashSet<>();
+             for (String roleName : request.getRoles()) {
+                 org.example.foodanddrinkproject.entity.Role role = roleRepository.findByName(roleName)
+                    .orElseThrow(() -> new BadRequestException("Role not found: " + roleName));
+                 newRoles.add(role);
+             }
+             user.setRoles(newRoles);
+         }
+         
+         user.setEnabled(request.isEnabled());
+         userRepository.save(user);
+    }
+
+    @Override
+    public java.util.List<org.example.foodanddrinkproject.entity.Role> getAllRoles() {
+        return roleRepository.findAll();
+    }
+
     private UserProfileDto convertToDto(User user) {
         UserProfileDto dto = new UserProfileDto();
 
@@ -112,8 +170,8 @@ public class UserServiceImpl implements UserService {
             dto.setAuthProvider(user.getAuthProvider().name());
         }
 
-        // Optional: If you added 'isEnabled' to UserProfileDto, map it here too
-        // dto.setEnabled(user.isEnabled());
+        dto.setEnabled(user.isEnabled());
+        dto.setRoles(user.getRoles().stream().map(org.example.foodanddrinkproject.entity.Role::getName).collect(java.util.stream.Collectors.toSet()));
 
         return dto;
     }
@@ -125,6 +183,8 @@ public class UserServiceImpl implements UserService {
         dto.setFullName(user.getFullName());
         dto.setPhoneNumber(user.getPhoneNumber());
         dto.setAuthProvider(user.getAuthProvider().name());
+        dto.setEnabled(user.isEnabled());
+        dto.setRoles(user.getRoles().stream().map(org.example.foodanddrinkproject.entity.Role::getName).collect(java.util.stream.Collectors.toSet()));
 
         return dto;
     }
